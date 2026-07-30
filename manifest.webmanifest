@@ -1,0 +1,24 @@
+{
+  "name": "轻衡 · 体重记录",
+  "short_name": "轻衡",
+  "description": "简洁的个人体重记录，数据保存在本机浏览器。",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#e7f3ef",
+  "theme_color": "#1a4d45",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
