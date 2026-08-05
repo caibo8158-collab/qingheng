@@ -537,11 +537,25 @@ async function callFoodModel(userText) {
     { role: "user", content: userText },
   ];
 
-  const res = await fetch(String(sharedFoodApiUrl).trim(), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
-  });
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 25000);
+
+  let res;
+  try {
+    res = await fetch(String(sharedFoodApiUrl).trim(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      throw new Error("识别超时，请检查网络后重试");
+    }
+    throw new Error("无法连接识别服务，请换网络后重试");
+  } finally {
+    window.clearTimeout(timer);
+  }
 
   const raw = await res.text();
   let data;
@@ -670,8 +684,15 @@ async function onChatSubmit(e) {
     if (last && last.textContent.includes("正在识别")) last.remove();
     const msg = err?.message || "识别失败";
     appendChat("assistant", msg, true);
-    if (err?.name === "TypeError" || /Failed to fetch|NetworkError|CORS|跨域/i.test(msg)) {
-      appendChat("assistant", "网络请求失败，请检查网络后重试。", true);
+    if (
+      err?.name === "TypeError" ||
+      /Failed to fetch|NetworkError|CORS|跨域|无法连接|超时/i.test(msg)
+    ) {
+      appendChat(
+        "assistant",
+        "若一直失败，可切换 Wi‑Fi / 蜂窝网络后再试。",
+        true
+      );
     }
   } finally {
     setChatBusy(false);
