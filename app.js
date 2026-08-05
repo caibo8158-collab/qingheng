@@ -435,9 +435,20 @@ function formatFoodLine(f) {
 function renderMeals() {
   const meals = [...mealsToday()].reverse();
   const count = meals.length;
-  els.mealCountBadge.textContent = String(count);
+
+  if (els.mealCountBadge) {
+    els.mealCountBadge.textContent = String(count);
+  }
+
+  if (!els.mealList) return;
+
   els.mealList.innerHTML = "";
-  els.mealsEmpty.hidden = count > 0;
+
+  if (els.mealsEmpty) {
+    const empty = count === 0;
+    els.mealsEmpty.hidden = !empty;
+    els.mealsEmpty.classList.toggle("hidden", !empty);
+  }
 
   meals.forEach((m) => {
     const li = document.createElement("li");
@@ -462,14 +473,20 @@ function renderMeals() {
 
 function openMealsView() {
   renderFood();
-  els.mealsView.hidden = false;
-  els.homeView.hidden = true;
+  if (els.homeView) els.homeView.hidden = true;
+  if (els.mealsView) {
+    els.mealsView.hidden = false;
+    els.mealsView.removeAttribute("hidden");
+  }
   window.scrollTo(0, 0);
 }
 
 function closeMealsView() {
-  els.mealsView.hidden = true;
-  els.homeView.hidden = false;
+  if (els.mealsView) els.mealsView.hidden = true;
+  if (els.homeView) {
+    els.homeView.hidden = false;
+    els.homeView.removeAttribute("hidden");
+  }
 }
 
 function appendChat(role, text, isError = false) {
@@ -574,6 +591,9 @@ function saveMeal(rawText, foods) {
     foods,
     createdAt: new Date().toISOString(),
   });
+  if (!meal) {
+    throw new Error("保存失败，请重试");
+  }
   store.meals.push(meal);
   saveStore();
   return meal;
@@ -638,12 +658,13 @@ async function onChatSubmit(e) {
     const meal = saveMeal(text, foods);
     const last = els.chatLog.querySelector(".chat-bubble:last-child");
     if (last) last.remove();
-    const lines = meal.foods.map((f) => formatFoodLine(f)).join("\n");
+    renderFood();
     appendChat(
       "assistant",
-      `已记录：\n${lines}\n合计 ${Math.round(meal.totals.calories)} kcal\n可点右上角「今日详情」查看全部。`
+      `已保存到今日详情\n合计 ${Math.round(meal.totals.calories)} kcal`
     );
-    renderFood();
+    openMealsView();
+    return;
   } catch (err) {
     const last = els.chatLog.querySelector(".chat-bubble:last-child");
     if (last && last.textContent.includes("正在识别")) last.remove();
