@@ -1,12 +1,13 @@
 /**
- * 页面：https://qingheng.caibo8158.workers.dev/
- * 饮食识别：复用已配置 API_KEY 的 Worker（同属 Cloudflare，国内一般比 github.io 稳）
+ * 阿里云部署后填写：
+ * 1) foodApiUrl = 函数计算 HTTP 地址
+ * 页面请上传到 OSS 静态网站，并用 OSS/CDN 域名打开。
  */
-const FOOD_API = "https://long-term-8ca7.caibo8158.workers.dev";
+const FOOD_API_URL = "在这里粘贴函数计算HTTP地址";
 
 export function getFoodApiUrl() {
-  return FOOD_API;
+  return String(FOOD_API_URL || "").trim();
 }
 
 /** @deprecated */
-export const sharedFoodApiUrl = FOOD_API;
+export const sharedFoodApiUrl = FOOD_API_URL;
