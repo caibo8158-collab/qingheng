@@ -1,14 +1,12 @@
 import { sharedFoodApiUrl } from "./config.js";
 
 const STORAGE_KEY = "qingheng.v1";
-const SETTINGS_KEY = "qingheng.settings.v1";
 
 /**
  * @typedef {{ date: string, weight: number, note?: string, updatedAt: string }} Entry
  * @typedef {{ name: string, amount?: string, calories: number, protein: number, fat: number, carbs: number }} FoodItem
  * @typedef {{ id: string, date: string, rawText: string, foods: FoodItem[], totals: Omit<FoodItem, 'name'|'amount'>, createdAt: string }} Meal
  * @typedef {{ goal: number | null, entries: Entry[], meals: Meal[] }} Store
- * @typedef {{ baseUrl: string, model: string, apiKey: string, proxyUrl: string }} ApiSettings
  */
 
 const els = {
@@ -31,13 +29,6 @@ const els = {
   historyCount: document.getElementById("history-count"),
   exportBtn: document.getElementById("export-btn"),
   importInput: document.getElementById("import-input"),
-  apiSettingsBtn: document.getElementById("api-settings-btn"),
-  apiDialog: document.getElementById("api-dialog"),
-  apiForm: document.getElementById("api-form"),
-  apiBase: document.getElementById("api-base"),
-  apiModel: document.getElementById("api-model"),
-  apiKey: document.getElementById("api-key"),
-  apiProxy: document.getElementById("api-proxy"),
   chatLog: document.getElementById("chat-log"),
   chatForm: document.getElementById("chat-form"),
   chatInput: document.getElementById("chat-input"),
@@ -53,8 +44,6 @@ const els = {
 let range = "7";
 /** @type {Store} */
 let store = loadStore();
-/** @type {ApiSettings} */
-let settings = loadSettings();
 let chatBusy = false;
 
 const FOOD_SYSTEM_PROMPT = `你是饮食营养估算助手。用户会用中文描述吃了什么。
@@ -75,36 +64,6 @@ function todayISO() {
 
 function uid() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function defaultSettings() {
-  return {
-    baseUrl: "https://api.deepseek.com/v1",
-    model: "deepseek-chat",
-    apiKey: "",
-    proxyUrl: "",
-  };
-}
-
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return defaultSettings();
-    const parsed = JSON.parse(raw);
-    return {
-      ...defaultSettings(),
-      baseUrl: typeof parsed.baseUrl === "string" ? parsed.baseUrl : defaultSettings().baseUrl,
-      model: typeof parsed.model === "string" ? parsed.model : defaultSettings().model,
-      apiKey: typeof parsed.apiKey === "string" ? parsed.apiKey : "",
-      proxyUrl: typeof parsed.proxyUrl === "string" ? parsed.proxyUrl : "",
-    };
-  } catch {
-    return defaultSettings();
-  }
-}
-
-function saveSettings() {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
 function normalizeMeal(m) {
@@ -511,62 +470,25 @@ function extractJson(text) {
   }
 }
 
-function buildCompletionsUrl() {
-  const base = settings.baseUrl.replace(/\/+$/, "");
-  if (base.endsWith("/chat/completions")) return base;
-  return `${base}/chat/completions`;
-}
-
 function hasSharedApi() {
   return Boolean(String(sharedFoodApiUrl || "").trim());
 }
 
-function hasPersonalApi() {
-  return Boolean(settings.apiKey.trim() && settings.baseUrl.trim());
-}
-
-function canUseFoodApi() {
-  return hasSharedApi() || hasPersonalApi();
-}
-
 async function callFoodModel(userText) {
+  if (!hasSharedApi()) {
+    throw new Error("饮食识别服务暂时不可用，请稍后再试");
+  }
+
   const messages = [
     { role: "system", content: FOOD_SYSTEM_PROMPT },
     { role: "user", content: userText },
   ];
 
-  let res;
-  if (hasSharedApi()) {
-    // 站点公共代理：密钥在服务端，访客免配置
-    res = await fetch(String(sharedFoodApiUrl).trim(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
-    });
-  } else if (hasPersonalApi()) {
-    const payload = {
-      model: settings.model || "deepseek-chat",
-      temperature: 0.2,
-      messages,
-    };
-    const proxy = settings.proxyUrl.trim();
-    const targetUrl = buildCompletionsUrl();
-    const url = proxy || targetUrl;
-    const body = proxy
-      ? JSON.stringify({ ...payload, targetUrl })
-      : JSON.stringify(payload);
-
-    res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${settings.apiKey.trim()}`,
-      },
-      body,
-    });
-  } else {
-    throw new Error("饮食识别服务尚未开通，请稍后再试或在 API 设置中填写个人密钥");
-  }
+  const res = await fetch(String(sharedFoodApiUrl).trim(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+  });
 
   const raw = await res.text();
   let data;
@@ -603,16 +525,9 @@ async function callFoodModel(userText) {
 }
 
 function updateFoodHint() {
-  if (hasSharedApi()) {
-    els.chatHint.textContent =
-      "用一句话说清食物和大概分量，AI 会估算营养并保存。";
-  } else if (hasPersonalApi()) {
-    els.chatHint.textContent =
-      "当前使用你自己的 API Key。用一句话描述食物即可记录。";
-  } else {
-    els.chatHint.textContent =
-      "站点公共识别尚未配置。可点「API 设置」填写个人密钥，或等站长开通公共服务。";
-  }
+  els.chatHint.textContent = hasSharedApi()
+    ? "用一句话说清食物和大概分量，AI 会估算营养并保存。"
+    : "饮食识别服务暂时不可用。";
 }
 
 function saveMeal(rawText, foods) {
@@ -672,13 +587,8 @@ async function onChatSubmit(e) {
   const text = els.chatInput.value.trim();
   if (!text || chatBusy) return;
 
-  if (!canUseFoodApi()) {
-    appendChat(
-      "assistant",
-      "饮食识别还不能用。请点右上角「API 设置」填写个人密钥，或等待站长开通公共服务。",
-      true
-    );
-    els.apiDialog.showModal();
+  if (!hasSharedApi()) {
+    appendChat("assistant", "饮食识别服务暂时不可用，请稍后再试。", true);
     return;
   }
 
@@ -703,12 +613,8 @@ async function onChatSubmit(e) {
     if (last && last.textContent.includes("正在识别")) last.remove();
     const msg = err?.message || "识别失败";
     appendChat("assistant", msg, true);
-    if (/Failed to fetch|NetworkError|CORS|跨域/i.test(msg) || err?.name === "TypeError") {
-      appendChat(
-        "assistant",
-        "浏览器可能拦截了跨域请求。可在 API 设置里填写 CORS 代理，或使用支持浏览器直连的中转地址。",
-        true
-      );
+    if (err?.name === "TypeError" || /Failed to fetch|NetworkError|CORS|跨域/i.test(msg)) {
+      appendChat("assistant", "网络请求失败，请检查网络后重试。", true);
     }
   } finally {
     setChatBusy(false);
@@ -771,20 +677,6 @@ async function importBackup(file) {
   }
 }
 
-function openApiSettings() {
-  const status = document.getElementById("api-status");
-  if (status) {
-    status.textContent = hasSharedApi()
-      ? "当前已开通站点公共识别，访客一般无需填写下方密钥。"
-      : "尚未开通站点公共识别。你仍可填写个人密钥自用。";
-  }
-  els.apiBase.value = settings.baseUrl || "";
-  els.apiModel.value = settings.model || "";
-  els.apiKey.value = settings.apiKey || "";
-  els.apiProxy.value = settings.proxyUrl || "";
-  els.apiDialog.showModal();
-}
-
 function init() {
   els.date.value = todayISO();
   fillFormForDate(els.date.value);
@@ -843,21 +735,6 @@ function init() {
       render();
       showFeedback("已清除目标");
     }
-  });
-
-  els.apiSettingsBtn.addEventListener("click", openApiSettings);
-  els.apiForm.addEventListener("submit", (e) => {
-    const submitter = e.submitter;
-    const value = submitter ? submitter.value : "cancel";
-    if (value !== "save") return;
-    settings = {
-      baseUrl: els.apiBase.value.trim() || defaultSettings().baseUrl,
-      model: els.apiModel.value.trim() || defaultSettings().model,
-      apiKey: els.apiKey.value.trim(),
-      proxyUrl: els.apiProxy.value.trim(),
-    };
-    saveSettings();
-    updateFoodHint();
   });
 
   els.chatForm.addEventListener("submit", onChatSubmit);
