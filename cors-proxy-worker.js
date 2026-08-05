@@ -2,14 +2,13 @@
  * Cloudflare Worker：把大模型 Key 留在服务端，访客无需自行配置。
  *
  * 部署：
- * 1. Cloudflare Dashboard → Workers → Create
- * 2. 粘贴本文件，或用 wrangler deploy
- * 3. Settings → Variables：
+ * 1. Cloudflare Dashboard → Workers → Edit code → 粘贴本文件 → Deploy
+ * 2. Settings → Variables：
  *    - API_KEY = 你的 DeepSeek / OpenAI 兼容密钥（Secret）
  *    - BASE_URL = https://api.deepseek.com/v1   （可选）
  *    - MODEL = deepseek-chat                    （可选）
- *    - RATE_LIMIT = 40                          （每小时每 IP 次数，可选）
- * 4. 把 Worker 地址写入前端 config.js 的 sharedFoodApiUrl
+ *    - RATE_LIMIT = 5                           （每天每 IP 次数，默认 5）
+ * 3. 把 Worker 地址写入前端 config.js 的 sharedFoodApiUrl
  */
 export default {
   async fetch(request, env) {
@@ -41,11 +40,11 @@ export default {
       request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ||
       "unknown";
 
-    const limit = Number(env.RATE_LIMIT || 40);
+    const limit = Number(env.RATE_LIMIT || 5);
     const limited = await hitRateLimit(env, ip, limit);
     if (limited) {
       return json(
-        { error: { message: "今日调用过于频繁，请稍后再试" } },
+        { error: { message: "今日免费识别次数已用完（每天 5 次），明天再来吧" } },
         429,
         cors
       );
@@ -59,7 +58,8 @@ export default {
       }
 
       // 只允许饮食识别这种短对话，降低滥用空间
-      const userText = [...messages].reverse().find((m) => m.role === "user")?.content || "";
+      const userText =
+        [...messages].reverse().find((m) => m.role === "user")?.content || "";
       if (typeof userText !== "string" || userText.trim().length < 1) {
         return json({ error: { message: "请输入食物描述" } }, 400, cors);
       }
@@ -113,17 +113,22 @@ function json(data, status, cors) {
   });
 }
 
-/** 简易每小时限额；有 KV 时更稳，无 KV 时用内存（单隔离内有效） */
+/** 按北京时间自然日限额；有 KV 时更稳，无 KV 时用内存（单隔离内有效） */
 const memoryHits = new Map();
 
+function dayKeyCST() {
+  // 北京时间 YYYY-MM-DD
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Shanghai" });
+}
+
 async function hitRateLimit(env, ip, limit) {
-  const hour = Math.floor(Date.now() / 3600000);
-  const key = `rl:${hour}:${ip}`;
+  const day = dayKeyCST();
+  const key = `rl:${day}:${ip}`;
 
   if (env.RATE_KV) {
     const current = Number((await env.RATE_KV.get(key)) || 0);
     if (current >= limit) return true;
-    await env.RATE_KV.put(key, String(current + 1), { expirationTtl: 3700 });
+    await env.RATE_KV.put(key, String(current + 1), { expirationTtl: 90000 });
     return false;
   }
 
@@ -132,7 +137,7 @@ async function hitRateLimit(env, ip, limit) {
   memoryHits.set(key, bucket + 1);
   if (memoryHits.size > 5000) {
     for (const k of memoryHits.keys()) {
-      if (!k.includes(`:${hour}:`)) memoryHits.delete(k);
+      if (!k.includes(`:${day}:`)) memoryHits.delete(k);
     }
   }
   return false;

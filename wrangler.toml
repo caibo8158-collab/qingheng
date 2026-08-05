@@ -8,4 +8,4 @@ compatibility_date = "2024-11-01"
 # 可选变量（非密钥）：
 # BASE_URL = https://api.deepseek.com/v1
 # MODEL = deepseek-chat
-# RATE_LIMIT = 40
+# RATE_LIMIT = 5   # 每天每 IP 次数
