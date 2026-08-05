@@ -153,20 +153,6 @@ body {
   animation-delay: 0.08s;
 }
 
-.link-btn {
-  appearance: none;
-  border: none;
-  background: transparent;
-  color: var(--accent-deep);
-  font: inherit;
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 4px 0;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 .nutrition-today {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -326,39 +312,8 @@ body {
   color: var(--brand);
 }
 
-.field {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 12px;
-  font-size: 0.88rem;
-  color: var(--ink-soft);
-}
-
-.field input {
-  font: inherit;
-  color: var(--ink);
-  border: 1px solid var(--line);
-  background: #fff;
-  border-radius: 14px;
-  padding: 11px 12px;
-  outline: none;
-}
-
-.field input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(47, 143, 123, 0.18);
-}
-
 .dialog-wide {
   width: min(94vw, 400px);
-}
-
-.date-field input,
-.note-field input,
-.weight-row input,
-.chat-form input,
-.field input {
-  font: inherit;
 }
 
 .panel-head {
