@@ -1,0 +1,8 @@
+worker.js
+wrangler.toml
+cors-proxy-worker.js
+functions/
+.git/
+.gitignore
+README*
+*.md
