@@ -1,11 +1,5 @@
-name = "qingheng-food"
-main = "cors-proxy-worker.js"
-compatibility_date = "2024-11-01"
-
-# 在 Cloudflare 控制台或用下面命令写入密钥：
-# npx wrangler secret put API_KEY
-#
-# 可选变量（非密钥）：
-# BASE_URL = https://api.deepseek.com/v1
-# MODEL = deepseek-chat
-# RATE_LIMIT = 5   # 每天每 IP 次数
+{
+  "name": "qingheng",
+  "compatibility_date": "2024-11-01",
+  "pages_build_output_dir": "."
+}
