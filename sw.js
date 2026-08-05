@@ -1,4 +1,4 @@
-const CACHE = "qingheng-v1";
+const CACHE = "qingheng-v2";
 const ASSETS = [
   "./",
   "./index.html",

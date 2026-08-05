@@ -72,6 +72,53 @@
         <p id="save-feedback" class="feedback" role="status" aria-live="polite"></p>
       </section>
 
+      <section class="panel food-panel" aria-labelledby="food-title">
+        <div class="panel-head">
+          <h2 id="food-title">饮食记录</h2>
+          <button id="api-settings-btn" class="link-btn" type="button">API 设置</button>
+        </div>
+
+        <div class="nutrition-today" aria-label="今日营养合计">
+          <div class="nutri-item">
+            <span>热量</span>
+            <strong id="today-kcal">0</strong>
+            <em>kcal</em>
+          </div>
+          <div class="nutri-item">
+            <span>蛋白</span>
+            <strong id="today-protein">0</strong>
+            <em>g</em>
+          </div>
+          <div class="nutri-item">
+            <span>脂肪</span>
+            <strong id="today-fat">0</strong>
+            <em>g</em>
+          </div>
+          <div class="nutri-item">
+            <span>碳水</span>
+            <strong id="today-carbs">0</strong>
+            <em>g</em>
+          </div>
+        </div>
+
+        <div id="chat-log" class="chat-log" aria-live="polite"></div>
+
+        <form id="chat-form" class="chat-form">
+          <input
+            id="chat-input"
+            type="text"
+            maxlength="200"
+            autocomplete="off"
+            placeholder="例如：一碗牛肉面，加个茶叶蛋"
+            aria-label="描述吃了什么"
+          />
+          <button id="chat-send" class="btn primary chat-send" type="submit">记录</button>
+        </form>
+        <p id="chat-hint" class="chat-hint muted">用一句话说清食物和大概分量，AI 会估算营养并保存。</p>
+
+        <ul id="meal-list" class="meal-list" aria-label="今日已记录食物"></ul>
+      </section>
+
       <section class="panel stats" aria-label="概览">
         <div class="stat">
           <span class="stat-label">最近</span>
@@ -150,6 +197,50 @@
         </div>
         <div class="dialog-actions">
           <button value="clear" class="btn ghost" type="submit">清除</button>
+          <button value="cancel" class="btn ghost" type="submit">取消</button>
+          <button value="save" class="btn primary" type="submit">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="api-dialog" class="dialog dialog-wide">
+      <form method="dialog" id="api-form">
+        <h3>大模型 API</h3>
+        <p class="dialog-copy">
+          密钥只存在你自己的浏览器。兼容 OpenAI 格式接口（如 DeepSeek、通义兼容模式等）。
+        </p>
+        <label class="field">
+          <span>接口地址</span>
+          <input
+            id="api-base"
+            type="url"
+            placeholder="https://api.deepseek.com/v1"
+            autocomplete="off"
+          />
+        </label>
+        <label class="field">
+          <span>模型</span>
+          <input id="api-model" type="text" placeholder="deepseek-chat" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>API Key</span>
+          <input
+            id="api-key"
+            type="password"
+            placeholder="sk-..."
+            autocomplete="off"
+          />
+        </label>
+        <label class="field">
+          <span>CORS 代理（可选）</span>
+          <input
+            id="api-proxy"
+            type="url"
+            placeholder="若浏览器报跨域，填你的代理地址"
+            autocomplete="off"
+          />
+        </label>
+        <div class="dialog-actions">
           <button value="cancel" class="btn ghost" type="submit">取消</button>
           <button value="save" class="btn primary" type="submit">保存</button>
         </div>

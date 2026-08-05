@@ -146,7 +146,219 @@ body {
   animation-delay: 0.2s;
 }
 .tools {
-  animation-delay: 0.25s;
+  animation-delay: 0.3s;
+}
+
+.food-panel {
+  animation-delay: 0.08s;
+}
+
+.link-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--accent-deep);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.nutrition-today {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.nutri-item {
+  text-align: center;
+  padding: 10px 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--line);
+}
+
+.nutri-item span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  margin-bottom: 2px;
+}
+
+.nutri-item strong {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.nutri-item em {
+  font-style: normal;
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+}
+
+.chat-log {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+  margin-bottom: 12px;
+  padding: 4px 2px;
+}
+
+.chat-bubble {
+  max-width: 92%;
+  padding: 10px 12px;
+  border-radius: 16px;
+  font-size: 0.92rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+  animation: fade-in 0.3s ease both;
+}
+
+.chat-user {
+  justify-self: end;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+  color: #fff;
+  border-bottom-right-radius: 6px;
+}
+
+.chat-assistant {
+  justify-self: start;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-bottom-left-radius: 6px;
+}
+
+.chat-assistant.is-error {
+  color: var(--danger);
+  background: rgba(180, 35, 24, 0.06);
+  border-color: rgba(180, 35, 24, 0.18);
+}
+
+.chat-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-form input {
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  border-radius: 16px;
+  padding: 12px 14px;
+  outline: none;
+}
+
+.chat-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 143, 123, 0.18);
+}
+
+.chat-send {
+  width: auto;
+  padding: 12px 16px;
+  white-space: nowrap;
+}
+
+.chat-send:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.chat-hint {
+  margin: 8px 0 0;
+}
+
+.meal-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.meal-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: start;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--line);
+}
+
+.meal-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.meal-top strong {
+  font-size: 0.95rem;
+}
+
+.meal-food {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+.meal-total {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--brand);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.field input {
+  font: inherit;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 14px;
+  padding: 11px 12px;
+  outline: none;
+}
+
+.field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 143, 123, 0.18);
+}
+
+.dialog-wide {
+  width: min(94vw, 400px);
+}
+
+.date-field input,
+.note-field input,
+.weight-row input,
+.chat-form input,
+.field input {
+  font: inherit;
 }
 
 .panel-head {

@@ -1,7 +1,13 @@
 const STORAGE_KEY = "qingheng.v1";
+const SETTINGS_KEY = "qingheng.settings.v1";
 
-/** @typedef {{ date: string, weight: number, note?: string, updatedAt: string }} Entry */
-/** @typedef {{ goal: number | null, entries: Entry[] }} Store */
+/**
+ * @typedef {{ date: string, weight: number, note?: string, updatedAt: string }} Entry
+ * @typedef {{ name: string, amount?: string, calories: number, protein: number, fat: number, carbs: number }} FoodItem
+ * @typedef {{ id: string, date: string, rawText: string, foods: FoodItem[], totals: Omit<FoodItem, 'name'|'amount'>, createdAt: string }} Meal
+ * @typedef {{ goal: number | null, entries: Entry[], meals: Meal[] }} Store
+ * @typedef {{ baseUrl: string, model: string, apiKey: string, proxyUrl: string }} ApiSettings
+ */
 
 const els = {
   date: document.getElementById("entry-date"),
@@ -23,11 +29,41 @@ const els = {
   historyCount: document.getElementById("history-count"),
   exportBtn: document.getElementById("export-btn"),
   importInput: document.getElementById("import-input"),
+  apiSettingsBtn: document.getElementById("api-settings-btn"),
+  apiDialog: document.getElementById("api-dialog"),
+  apiForm: document.getElementById("api-form"),
+  apiBase: document.getElementById("api-base"),
+  apiModel: document.getElementById("api-model"),
+  apiKey: document.getElementById("api-key"),
+  apiProxy: document.getElementById("api-proxy"),
+  chatLog: document.getElementById("chat-log"),
+  chatForm: document.getElementById("chat-form"),
+  chatInput: document.getElementById("chat-input"),
+  chatSend: document.getElementById("chat-send"),
+  chatHint: document.getElementById("chat-hint"),
+  mealList: document.getElementById("meal-list"),
+  todayKcal: document.getElementById("today-kcal"),
+  todayProtein: document.getElementById("today-protein"),
+  todayFat: document.getElementById("today-fat"),
+  todayCarbs: document.getElementById("today-carbs"),
 };
 
 let range = "7";
 /** @type {Store} */
 let store = loadStore();
+/** @type {ApiSettings} */
+let settings = loadSettings();
+let chatBusy = false;
+
+const FOOD_SYSTEM_PROMPT = `你是饮食营养估算助手。用户会用中文描述吃了什么。
+请估算每样食物的营养，只返回 JSON，不要 Markdown，不要解释。
+格式：
+{"foods":[{"name":"食物名","amount":"分量","calories":数字,"protein":数字,"fat":数字,"carbs":数字}]}
+规则：
+- calories 单位 kcal，protein/fat/carbs 单位克，保留 1 位小数
+- 若有多道食物就拆成多项
+- 分量不明确时按常见家常分量估算
+- 无法识别时返回 {"foods":[],"error":"原因"}`;
 
 function todayISO() {
   const d = new Date();
@@ -35,13 +71,83 @@ function todayISO() {
   return new Date(d.getTime() - tz).toISOString().slice(0, 10);
 }
 
+function uid() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function defaultSettings() {
+  return {
+    baseUrl: "https://api.deepseek.com/v1",
+    model: "deepseek-chat",
+    apiKey: "",
+    proxyUrl: "",
+  };
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return defaultSettings();
+    const parsed = JSON.parse(raw);
+    return {
+      ...defaultSettings(),
+      baseUrl: typeof parsed.baseUrl === "string" ? parsed.baseUrl : defaultSettings().baseUrl,
+      model: typeof parsed.model === "string" ? parsed.model : defaultSettings().model,
+      apiKey: typeof parsed.apiKey === "string" ? parsed.apiKey : "",
+      proxyUrl: typeof parsed.proxyUrl === "string" ? parsed.proxyUrl : "",
+    };
+  } catch {
+    return defaultSettings();
+  }
+}
+
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function normalizeMeal(m) {
+  if (!m || !Array.isArray(m.foods)) return null;
+  const foods = m.foods
+    .filter((f) => f && typeof f.name === "string")
+    .map((f) => ({
+      name: String(f.name),
+      amount: typeof f.amount === "string" ? f.amount : "",
+      calories: Number(f.calories) || 0,
+      protein: Number(f.protein) || 0,
+      fat: Number(f.fat) || 0,
+      carbs: Number(f.carbs) || 0,
+    }));
+  const totals = foods.reduce(
+    (acc, f) => ({
+      calories: acc.calories + f.calories,
+      protein: acc.protein + f.protein,
+      fat: acc.fat + f.fat,
+      carbs: acc.carbs + f.carbs,
+    }),
+    { calories: 0, protein: 0, fat: 0, carbs: 0 }
+  );
+  return {
+    id: typeof m.id === "string" ? m.id : uid(),
+    date: typeof m.date === "string" ? m.date : todayISO(),
+    rawText: typeof m.rawText === "string" ? m.rawText : "",
+    foods,
+    totals: {
+      calories: round1(totals.calories),
+      protein: round1(totals.protein),
+      fat: round1(totals.fat),
+      carbs: round1(totals.carbs),
+    },
+    createdAt: m.createdAt || new Date().toISOString(),
+  };
+}
+
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { goal: null, entries: [] };
+    if (!raw) return { goal: null, entries: [], meals: [] };
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.entries)) {
-      return { goal: null, entries: [] };
+      return { goal: null, entries: [], meals: [] };
     }
     return {
       goal: typeof parsed.goal === "number" ? parsed.goal : null,
@@ -53,14 +159,21 @@ function loadStore() {
           note: typeof e.note === "string" ? e.note : "",
           updatedAt: e.updatedAt || new Date().toISOString(),
         })),
+      meals: Array.isArray(parsed.meals)
+        ? parsed.meals.map(normalizeMeal).filter(Boolean)
+        : [],
     };
   } catch {
-    return { goal: null, entries: [] };
+    return { goal: null, entries: [], meals: [] };
   }
 }
 
 function saveStore() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+}
+
+function round1(n) {
+  return Math.round(Number(n) * 10) / 10;
 }
 
 function sortedEntries() {
@@ -76,6 +189,17 @@ function formatDateLabel(iso) {
   const date = new Date(y, m - 1, d);
   const week = ["日", "一", "二", "三", "四", "五", "六"][date.getDay()];
   return `${m}/${d} 周${week}`;
+}
+
+function formatTime(iso) {
+  try {
+    return new Date(iso).toLocaleTimeString("zh-CN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
 }
 
 function showFeedback(message, isError = false) {
@@ -203,7 +327,6 @@ function drawChart() {
   const xAt = (i) => pad.left + (data.length === 1 ? w / 2 : (i / (data.length - 1)) * w);
   const yAt = (v) => pad.top + ((max - v) / (max - min)) * h;
 
-  // grid
   ctx.strokeStyle = "rgba(20,53,47,0.08)";
   ctx.lineWidth = 1;
   ctx.fillStyle = "rgba(61,92,85,0.75)";
@@ -219,7 +342,6 @@ function drawChart() {
     ctx.fillText(val.toFixed(1), 6, y + 4);
   }
 
-  // goal line
   if (store.goal != null) {
     const gy = yAt(store.goal);
     ctx.setLineDash([5, 5]);
@@ -231,7 +353,6 @@ function drawChart() {
     ctx.setLineDash([]);
   }
 
-  // area + line
   const gradient = ctx.createLinearGradient(0, pad.top, 0, pad.top + h);
   gradient.addColorStop(0, "rgba(47,143,123,0.28)");
   gradient.addColorStop(1, "rgba(47,143,123,0.02)");
@@ -255,7 +376,6 @@ function drawChart() {
   ctx.fillStyle = gradient;
   ctx.fill();
 
-  // points
   data.forEach((e, i) => {
     const x = xAt(i);
     const y = yAt(e.weight);
@@ -268,14 +388,13 @@ function drawChart() {
     ctx.stroke();
   });
 
-  // x labels
   ctx.fillStyle = "rgba(61,92,85,0.8)";
   const labelIndexes =
     data.length <= 4
       ? data.map((_, i) => i)
       : [0, Math.floor((data.length - 1) / 2), data.length - 1];
   labelIndexes.forEach((i) => {
-    const [ , m, d] = data[i].date.split("-");
+    const [, m, d] = data[i].date.split("-");
     const label = `${Number(m)}/${Number(d)}`;
     const x = xAt(i);
     ctx.fillText(label, x - 12, cssH - 8);
@@ -302,18 +421,196 @@ function renderHistory() {
   });
 }
 
+function mealsToday() {
+  const day = todayISO();
+  return store.meals
+    .filter((m) => m.date === day)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+function sumTodayNutrition() {
+  return mealsToday().reduce(
+    (acc, m) => ({
+      calories: acc.calories + m.totals.calories,
+      protein: acc.protein + m.totals.protein,
+      fat: acc.fat + m.totals.fat,
+      carbs: acc.carbs + m.totals.carbs,
+    }),
+    { calories: 0, protein: 0, fat: 0, carbs: 0 }
+  );
+}
+
+function renderNutrition() {
+  const t = sumTodayNutrition();
+  els.todayKcal.textContent = String(Math.round(t.calories));
+  els.todayProtein.textContent = String(round1(t.protein));
+  els.todayFat.textContent = String(round1(t.fat));
+  els.todayCarbs.textContent = String(round1(t.carbs));
+}
+
+function formatFoodLine(f) {
+  const amount = f.amount ? `（${f.amount}）` : "";
+  return `${f.name}${amount} · ${round1(f.calories)} kcal · 蛋白 ${round1(f.protein)}g · 脂肪 ${round1(f.fat)}g · 碳水 ${round1(f.carbs)}g`;
+}
+
+function renderMeals() {
+  const meals = [...mealsToday()].reverse();
+  els.mealList.innerHTML = "";
+  meals.forEach((m) => {
+    const li = document.createElement("li");
+    li.className = "meal-item";
+    const foodsHtml = m.foods.map((f) => `<div class="meal-food">${escapeHtml(formatFoodLine(f))}</div>`).join("");
+    li.innerHTML = `
+      <div class="meal-main">
+        <div class="meal-top">
+          <strong>${escapeHtml(m.rawText || m.foods.map((f) => f.name).join("、"))}</strong>
+          <span class="muted">${formatTime(m.createdAt)}</span>
+        </div>
+        ${foodsHtml}
+        <div class="meal-total">合计 ${Math.round(m.totals.calories)} kcal</div>
+      </div>
+      <button class="delete-btn" type="button" data-meal-id="${m.id}" aria-label="删除这条饮食记录">×</button>
+    `;
+    els.mealList.appendChild(li);
+  });
+}
+
+function appendChat(role, text, isError = false) {
+  const div = document.createElement("div");
+  div.className = `chat-bubble chat-${role}${isError ? " is-error" : ""}`;
+  div.textContent = text;
+  els.chatLog.appendChild(div);
+  els.chatLog.scrollTop = els.chatLog.scrollHeight;
+}
+
+function setChatBusy(busy) {
+  chatBusy = busy;
+  els.chatSend.disabled = busy;
+  els.chatInput.disabled = busy;
+  els.chatSend.textContent = busy ? "识别中…" : "记录";
+}
+
 function escapeHtml(str) {
-  return str
+  return String(str)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 }
 
+function extractJson(text) {
+  const trimmed = String(text).trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const match = trimmed.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("模型未返回可解析的 JSON");
+    return JSON.parse(match[0]);
+  }
+}
+
+function buildCompletionsUrl() {
+  const base = settings.baseUrl.replace(/\/+$/, "");
+  if (base.endsWith("/chat/completions")) return base;
+  return `${base}/chat/completions`;
+}
+
+async function callFoodModel(userText) {
+  if (!settings.apiKey.trim()) {
+    throw new Error("请先在「API 设置」里填写 API Key");
+  }
+  if (!settings.baseUrl.trim()) {
+    throw new Error("请先填写接口地址");
+  }
+
+  const payload = {
+    model: settings.model || "deepseek-chat",
+    temperature: 0.2,
+    messages: [
+      { role: "system", content: FOOD_SYSTEM_PROMPT },
+      { role: "user", content: userText },
+    ],
+  };
+
+  const proxy = settings.proxyUrl.trim();
+  const targetUrl = buildCompletionsUrl();
+  const url = proxy || targetUrl;
+  const body = proxy
+    ? JSON.stringify({ ...payload, targetUrl })
+    : JSON.stringify(payload);
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${settings.apiKey.trim()}`,
+    },
+    body,
+  });
+
+  const raw = await res.text();
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new Error(res.ok ? "接口返回不是 JSON" : `请求失败（${res.status}）`);
+  }
+
+  if (!res.ok) {
+    const msg = data?.error?.message || data?.message || `请求失败（${res.status}）`;
+    throw new Error(msg);
+  }
+
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("模型没有返回内容");
+
+  const parsed = extractJson(content);
+  if (parsed.error && (!parsed.foods || !parsed.foods.length)) {
+    throw new Error(parsed.error);
+  }
+  if (!Array.isArray(parsed.foods) || !parsed.foods.length) {
+    throw new Error("没有识别到食物，请写得更具体一些");
+  }
+
+  return parsed.foods.map((f) => ({
+    name: String(f.name || "食物").slice(0, 40),
+    amount: String(f.amount || "").slice(0, 30),
+    calories: round1(f.calories),
+    protein: round1(f.protein),
+    fat: round1(f.fat),
+    carbs: round1(f.carbs),
+  }));
+}
+
+function saveMeal(rawText, foods) {
+  const meal = normalizeMeal({
+    id: uid(),
+    date: todayISO(),
+    rawText,
+    foods,
+    createdAt: new Date().toISOString(),
+  });
+  store.meals.push(meal);
+  saveStore();
+  return meal;
+}
+
+function deleteMeal(id) {
+  store.meals = store.meals.filter((m) => m.id !== id);
+  saveStore();
+  renderFood();
+}
+
+function renderFood() {
+  renderNutrition();
+  renderMeals();
+}
+
 function render() {
   renderStats();
   drawChart();
   renderHistory();
+  renderFood();
 }
 
 function onSave() {
@@ -337,10 +634,55 @@ function onSave() {
   showFeedback(existed ? "已更新当天记录" : "已保存");
 }
 
+async function onChatSubmit(e) {
+  e.preventDefault();
+  const text = els.chatInput.value.trim();
+  if (!text || chatBusy) return;
+
+  if (!settings.apiKey.trim()) {
+    appendChat("assistant", "还没有配置 API。点右上角「API 设置」填入密钥后再试。", true);
+    els.apiDialog.showModal();
+    return;
+  }
+
+  appendChat("user", text);
+  els.chatInput.value = "";
+  setChatBusy(true);
+  appendChat("assistant", "正在识别营养成分…");
+
+  try {
+    const foods = await callFoodModel(text);
+    const meal = saveMeal(text, foods);
+    const last = els.chatLog.querySelector(".chat-bubble:last-child");
+    if (last) last.remove();
+    const lines = meal.foods.map((f) => formatFoodLine(f)).join("\n");
+    appendChat(
+      "assistant",
+      `已记录：\n${lines}\n合计 ${Math.round(meal.totals.calories)} kcal`
+    );
+    renderFood();
+  } catch (err) {
+    const last = els.chatLog.querySelector(".chat-bubble:last-child");
+    if (last && last.textContent.includes("正在识别")) last.remove();
+    const msg = err?.message || "识别失败";
+    appendChat("assistant", msg, true);
+    if (/Failed to fetch|NetworkError|CORS|跨域/i.test(msg) || err?.name === "TypeError") {
+      appendChat(
+        "assistant",
+        "浏览器可能拦截了跨域请求。可在 API 设置里填写 CORS 代理，或使用支持浏览器直连的中转地址。",
+        true
+      );
+    }
+  } finally {
+    setChatBusy(false);
+    els.chatInput.focus();
+  }
+}
+
 function exportBackup() {
   const payload = {
     app: "轻衡",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     data: store,
   };
@@ -364,8 +706,9 @@ async function importBackup(file) {
     if (!data || !Array.isArray(data.entries)) {
       throw new Error("格式不正确");
     }
+    const mealCount = Array.isArray(data.meals) ? data.meals.length : 0;
     const ok = window.confirm(
-      `将导入 ${data.entries.length} 条记录，并覆盖当前数据。确定继续？`
+      `将导入 ${data.entries.length} 条体重、${mealCount} 条饮食，并覆盖当前数据。确定继续？`
     );
     if (!ok) return;
     store = {
@@ -378,6 +721,9 @@ async function importBackup(file) {
           note: typeof e.note === "string" ? e.note : "",
           updatedAt: e.updatedAt || new Date().toISOString(),
         })),
+      meals: Array.isArray(data.meals)
+        ? data.meals.map(normalizeMeal).filter(Boolean)
+        : [],
     };
     saveStore();
     fillFormForDate(els.date.value);
@@ -386,6 +732,14 @@ async function importBackup(file) {
   } catch {
     showFeedback("导入失败，请检查备份文件", true);
   }
+}
+
+function openApiSettings() {
+  els.apiBase.value = settings.baseUrl || "";
+  els.apiModel.value = settings.model || "";
+  els.apiKey.value = settings.apiKey || "";
+  els.apiProxy.value = settings.proxyUrl || "";
+  els.apiDialog.showModal();
 }
 
 function init() {
@@ -415,6 +769,12 @@ function init() {
     if (window.confirm(`删除 ${date} 的记录？`)) deleteEntry(date);
   });
 
+  els.mealList.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-meal-id]");
+    if (!btn) return;
+    if (window.confirm("删除这条饮食记录？")) deleteMeal(btn.dataset.mealId);
+  });
+
   els.goalBtn.addEventListener("click", () => {
     els.goalInput.value = store.goal != null ? String(store.goal) : "";
     els.goalDialog.showModal();
@@ -442,6 +802,24 @@ function init() {
     }
   });
 
+  els.apiSettingsBtn.addEventListener("click", openApiSettings);
+  els.apiForm.addEventListener("submit", (e) => {
+    const submitter = e.submitter;
+    const value = submitter ? submitter.value : "cancel";
+    if (value !== "save") return;
+    settings = {
+      baseUrl: els.apiBase.value.trim() || defaultSettings().baseUrl,
+      model: els.apiModel.value.trim() || defaultSettings().model,
+      apiKey: els.apiKey.value.trim(),
+      proxyUrl: els.apiProxy.value.trim(),
+    };
+    saveSettings();
+    els.chatHint.textContent = settings.apiKey
+      ? "用一句话说清食物和大概分量，AI 会估算营养并保存。"
+      : "请先配置 API Key，才能识别食物营养。";
+  });
+
+  els.chatForm.addEventListener("submit", onChatSubmit);
   els.exportBtn.addEventListener("click", exportBackup);
   els.importInput.addEventListener("change", () => {
     const file = els.importInput.files?.[0];
@@ -450,6 +828,11 @@ function init() {
   });
 
   window.addEventListener("resize", () => drawChart());
+
+  if (!settings.apiKey) {
+    els.chatHint.textContent = "请先点右上角「API 设置」填写密钥，再开始记录饮食。";
+  }
+
   render();
 
   if ("serviceWorker" in navigator) {
