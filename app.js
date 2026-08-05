@@ -1,4 +1,4 @@
-import { sharedFoodApiUrl } from "./config.js";
+import { getFoodApiUrl } from "./config.js";
 
 const STORAGE_KEY = "qingheng.v1";
 
@@ -524,7 +524,7 @@ function extractJson(text) {
 }
 
 function hasSharedApi() {
-  return Boolean(String(sharedFoodApiUrl || "").trim());
+  return Boolean(String(getFoodApiUrl() || "").trim());
 }
 
 async function callFoodModel(userText) {
@@ -542,7 +542,7 @@ async function callFoodModel(userText) {
 
   let res;
   try {
-    res = await fetch(String(sharedFoodApiUrl).trim(), {
+    res = await fetch(String(getFoodApiUrl()).trim(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages }),
