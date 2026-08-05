@@ -75,7 +75,6 @@
       <section class="panel food-panel" aria-labelledby="food-title">
         <div class="panel-head">
           <h2 id="food-title">饮食记录</h2>
-          <button id="api-settings-btn" class="link-btn" type="button">API 设置</button>
         </div>
 
         <div class="nutrition-today" aria-label="今日营养合计">
@@ -197,53 +196,6 @@
         </div>
         <div class="dialog-actions">
           <button value="clear" class="btn ghost" type="submit">清除</button>
-          <button value="cancel" class="btn ghost" type="submit">取消</button>
-          <button value="save" class="btn primary" type="submit">保存</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="api-dialog" class="dialog dialog-wide">
-      <form method="dialog" id="api-form">
-        <h3>大模型 API</h3>
-        <p id="api-status" class="dialog-copy">
-          站长可配置公共识别服务；你也可以填写个人密钥自用。
-        </p>
-        <p class="dialog-copy">
-          个人密钥只存在你自己的浏览器，兼容 OpenAI 格式接口（如 DeepSeek）。
-        </p>
-        <label class="field">
-          <span>接口地址</span>
-          <input
-            id="api-base"
-            type="url"
-            placeholder="https://api.deepseek.com/v1"
-            autocomplete="off"
-          />
-        </label>
-        <label class="field">
-          <span>模型</span>
-          <input id="api-model" type="text" placeholder="deepseek-chat" autocomplete="off" />
-        </label>
-        <label class="field">
-          <span>API Key</span>
-          <input
-            id="api-key"
-            type="password"
-            placeholder="sk-..."
-            autocomplete="off"
-          />
-        </label>
-        <label class="field">
-          <span>CORS 代理（可选）</span>
-          <input
-            id="api-proxy"
-            type="url"
-            placeholder="若浏览器报跨域，填你的代理地址"
-            autocomplete="off"
-          />
-        </label>
-        <div class="dialog-actions">
           <button value="cancel" class="btn ghost" type="submit">取消</button>
           <button value="save" class="btn primary" type="submit">保存</button>
         </div>
