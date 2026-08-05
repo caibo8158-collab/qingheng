@@ -1,9 +1,10 @@
-const CACHE = "qingheng-v2";
+const CACHE = "qingheng-v3";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./config.js",
   "./manifest.webmanifest",
   "./icon.svg",
   "./apple-touch-icon.png",
