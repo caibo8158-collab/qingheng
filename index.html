@@ -12,9 +12,9 @@
     <meta name="apple-mobile-web-app-title" content="轻衡" />
     <meta
       name="description"
-      content="轻衡 — 简洁的体重记录，数据保存在你自己的设备上。"
+      content="轻衡 — 饮食与体重记录，数据保存在你自己的设备上。"
     />
-    <title>轻衡 · 体重记录</title>
+    <title>轻衡 · 饮食体重记录</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
@@ -33,48 +33,19 @@
       <div class="grain"></div>
     </div>
 
-    <main class="app">
+    <main id="home-view" class="app">
       <header class="hero">
         <p class="brand">轻衡</p>
-        <h1 class="headline">把体重记下来，看见变化</h1>
+        <h1 class="headline">先记下吃了什么</h1>
         <p class="sub">数据只存在你自己的浏览器里，换设备请先导出备份。</p>
       </header>
-
-      <section class="panel record" aria-labelledby="record-title">
-        <div class="panel-head">
-          <h2 id="record-title">今日体重</h2>
-          <label class="date-field">
-            <span class="sr-only">日期</span>
-            <input id="entry-date" type="date" />
-          </label>
-        </div>
-
-        <div class="weight-row">
-          <input
-            id="weight-input"
-            type="number"
-            inputmode="decimal"
-            step="0.1"
-            min="20"
-            max="300"
-            placeholder="0.0"
-            aria-label="体重（公斤）"
-          />
-          <span class="unit">kg</span>
-        </div>
-
-        <label class="note-field">
-          <span>备注（可选）</span>
-          <input id="note-input" type="text" maxlength="80" placeholder="例如：早餐后 / 运动日" />
-        </label>
-
-        <button id="save-btn" class="btn primary" type="button">保存记录</button>
-        <p id="save-feedback" class="feedback" role="status" aria-live="polite"></p>
-      </section>
 
       <section class="panel food-panel" aria-labelledby="food-title">
         <div class="panel-head">
           <h2 id="food-title">饮食记录</h2>
+          <button id="open-meals-btn" class="link-btn" type="button">
+            今日详情 <span id="meal-count-badge" class="badge">0</span>
+          </button>
         </div>
 
         <div class="nutrition-today" aria-label="今日营养合计">
@@ -114,8 +85,38 @@
           <button id="chat-send" class="btn primary chat-send" type="submit">记录</button>
         </form>
         <p id="chat-hint" class="chat-hint muted">用一句话说清食物和大概分量，AI 会估算营养并保存。</p>
+      </section>
 
-        <ul id="meal-list" class="meal-list" aria-label="今日已记录食物"></ul>
+      <section class="panel record" aria-labelledby="record-title">
+        <div class="panel-head">
+          <h2 id="record-title">今日体重</h2>
+          <label class="date-field">
+            <span class="sr-only">日期</span>
+            <input id="entry-date" type="date" />
+          </label>
+        </div>
+
+        <div class="weight-row">
+          <input
+            id="weight-input"
+            type="number"
+            inputmode="decimal"
+            step="0.1"
+            min="20"
+            max="300"
+            placeholder="0.0"
+            aria-label="体重（公斤）"
+          />
+          <span class="unit">kg</span>
+        </div>
+
+        <label class="note-field">
+          <span>备注（可选）</span>
+          <input id="note-input" type="text" maxlength="80" placeholder="例如：早餐后 / 运动日" />
+        </label>
+
+        <button id="save-btn" class="btn primary" type="button">保存记录</button>
+        <p id="save-feedback" class="feedback" role="status" aria-live="polite"></p>
       </section>
 
       <section class="panel stats" aria-label="概览">
@@ -152,7 +153,7 @@
 
       <section class="panel history-panel" aria-labelledby="history-title">
         <div class="panel-head">
-          <h2 id="history-title">历史</h2>
+          <h2 id="history-title">体重历史</h2>
           <span id="history-count" class="muted"></span>
         </div>
         <ul id="history-list" class="history-list"></ul>
@@ -172,10 +173,45 @@
       </section>
 
       <footer class="foot">
-        <p>轻衡 · 个人体重记录</p>
+        <p>轻衡 · 饮食与体重记录</p>
         <p class="muted">添加到主屏幕后，可像 App 一样打开</p>
       </footer>
     </main>
+
+    <section id="meals-view" class="subview" hidden aria-labelledby="meals-view-title">
+      <div class="subview-inner">
+        <header class="subview-bar">
+          <button id="close-meals-btn" class="back-btn" type="button" aria-label="返回">← 返回</button>
+          <h2 id="meals-view-title">今日饮食详情</h2>
+        </header>
+
+        <div class="nutrition-today subview-nutri" aria-label="今日营养合计">
+          <div class="nutri-item">
+            <span>热量</span>
+            <strong id="detail-kcal">0</strong>
+            <em>kcal</em>
+          </div>
+          <div class="nutri-item">
+            <span>蛋白</span>
+            <strong id="detail-protein">0</strong>
+            <em>g</em>
+          </div>
+          <div class="nutri-item">
+            <span>脂肪</span>
+            <strong id="detail-fat">0</strong>
+            <em>g</em>
+          </div>
+          <div class="nutri-item">
+            <span>碳水</span>
+            <strong id="detail-carbs">0</strong>
+            <em>g</em>
+          </div>
+        </div>
+
+        <ul id="meal-list" class="meal-list meal-list-full" aria-label="今日已记录食物"></ul>
+        <p id="meals-empty" class="empty-hint">今天还没有饮食记录</p>
+      </div>
+    </section>
 
     <dialog id="goal-dialog" class="dialog">
       <form method="dialog" id="goal-form">

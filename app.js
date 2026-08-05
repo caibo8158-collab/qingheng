@@ -35,10 +35,20 @@ const els = {
   chatSend: document.getElementById("chat-send"),
   chatHint: document.getElementById("chat-hint"),
   mealList: document.getElementById("meal-list"),
+  mealsEmpty: document.getElementById("meals-empty"),
+  mealCountBadge: document.getElementById("meal-count-badge"),
+  openMealsBtn: document.getElementById("open-meals-btn"),
+  closeMealsBtn: document.getElementById("close-meals-btn"),
+  homeView: document.getElementById("home-view"),
+  mealsView: document.getElementById("meals-view"),
   todayKcal: document.getElementById("today-kcal"),
   todayProtein: document.getElementById("today-protein"),
   todayFat: document.getElementById("today-fat"),
   todayCarbs: document.getElementById("today-carbs"),
+  detailKcal: document.getElementById("detail-kcal"),
+  detailProtein: document.getElementById("detail-protein"),
+  detailFat: document.getElementById("detail-fat"),
+  detailCarbs: document.getElementById("detail-carbs"),
 };
 
 let range = "7";
@@ -403,10 +413,18 @@ function sumTodayNutrition() {
 
 function renderNutrition() {
   const t = sumTodayNutrition();
-  els.todayKcal.textContent = String(Math.round(t.calories));
-  els.todayProtein.textContent = String(round1(t.protein));
-  els.todayFat.textContent = String(round1(t.fat));
-  els.todayCarbs.textContent = String(round1(t.carbs));
+  const kcal = String(Math.round(t.calories));
+  const protein = String(round1(t.protein));
+  const fat = String(round1(t.fat));
+  const carbs = String(round1(t.carbs));
+  els.todayKcal.textContent = kcal;
+  els.todayProtein.textContent = protein;
+  els.todayFat.textContent = fat;
+  els.todayCarbs.textContent = carbs;
+  els.detailKcal.textContent = kcal;
+  els.detailProtein.textContent = protein;
+  els.detailFat.textContent = fat;
+  els.detailCarbs.textContent = carbs;
 }
 
 function formatFoodLine(f) {
@@ -416,11 +434,17 @@ function formatFoodLine(f) {
 
 function renderMeals() {
   const meals = [...mealsToday()].reverse();
+  const count = meals.length;
+  els.mealCountBadge.textContent = String(count);
   els.mealList.innerHTML = "";
+  els.mealsEmpty.hidden = count > 0;
+
   meals.forEach((m) => {
     const li = document.createElement("li");
     li.className = "meal-item";
-    const foodsHtml = m.foods.map((f) => `<div class="meal-food">${escapeHtml(formatFoodLine(f))}</div>`).join("");
+    const foodsHtml = m.foods
+      .map((f) => `<div class="meal-food">${escapeHtml(formatFoodLine(f))}</div>`)
+      .join("");
     li.innerHTML = `
       <div class="meal-main">
         <div class="meal-top">
@@ -434,6 +458,18 @@ function renderMeals() {
     `;
     els.mealList.appendChild(li);
   });
+}
+
+function openMealsView() {
+  renderFood();
+  els.mealsView.hidden = false;
+  els.homeView.hidden = true;
+  window.scrollTo(0, 0);
+}
+
+function closeMealsView() {
+  els.mealsView.hidden = true;
+  els.homeView.hidden = false;
 }
 
 function appendChat(role, text, isError = false) {
@@ -605,7 +641,7 @@ async function onChatSubmit(e) {
     const lines = meal.foods.map((f) => formatFoodLine(f)).join("\n");
     appendChat(
       "assistant",
-      `已记录：\n${lines}\n合计 ${Math.round(meal.totals.calories)} kcal`
+      `已记录：\n${lines}\n合计 ${Math.round(meal.totals.calories)} kcal\n可点右上角「今日详情」查看全部。`
     );
     renderFood();
   } catch (err) {
@@ -709,6 +745,9 @@ function init() {
     if (!btn) return;
     if (window.confirm("删除这条饮食记录？")) deleteMeal(btn.dataset.mealId);
   });
+
+  els.openMealsBtn.addEventListener("click", openMealsView);
+  els.closeMealsBtn.addEventListener("click", closeMealsView);
 
   els.goalBtn.addEventListener("click", () => {
     els.goalInput.value = store.goal != null ? String(store.goal) : "";
